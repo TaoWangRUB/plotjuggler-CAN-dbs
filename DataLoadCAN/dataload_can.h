@@ -7,6 +7,9 @@
 
 using namespace PJ;
 
+const uint64_t EXTENDED_IDENTIFIER = 2147483648;
+const uint8_t MAX_DATA_SIZE = 64;
+
 class DataLoadCAN : public DataLoader
 {
   Q_OBJECT
@@ -30,7 +33,10 @@ public:
   virtual bool xmlLoadState(const QDomElement &parent_element) override;
 
 private:
+  uint64_t getId (const uint64_t frame_id);
+private:
   std::vector<const char *> extensions_;
   std::string default_time_axis_;
   std::unique_ptr<CanFrameProcessor> frame_processor_;
+  bool is_extended_id_ = false;
 };

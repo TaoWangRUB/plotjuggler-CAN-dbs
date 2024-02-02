@@ -10,6 +10,8 @@
 #include "connectdialog.h"
 #include "../PluginsCommonCAN/CanFrameProcessor.h"
 
+const uint64_t EXTENDED_IDENTIFIER = 2147483648;
+const uint8_t MAX_DATA_SIZE = 64;
 
 class DataStreamCAN : public PJ::DataStreamer
 {
@@ -39,6 +41,7 @@ public:
 
 private slots:
   void connectCanInterface();
+  uint64_t getId(const uint64_t frame_id);
 
 private:
   ConnectDialog *connect_dialog_;

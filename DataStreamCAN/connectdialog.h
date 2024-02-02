@@ -51,6 +51,8 @@
 #ifndef CONNECTDIALOG_H
 #define CONNECTDIALOG_H
 
+#include "bitratebox.h" 
+
 #include <QCanBusDevice>
 #include <QCanBusDeviceInfo>
 
@@ -77,7 +79,7 @@ public:
     typedef QPair<QCanBusDevice::ConfigurationKey, QVariant> ConfigurationItem;
 
     struct Settings {
-        QString backendName;
+        QString pluginName;
         QString deviceInterfaceName;
         QString canDatabaseLocation;
         QList<ConfigurationItem> configurations;

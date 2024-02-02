@@ -53,9 +53,10 @@
 #include "../PluginsCommonCAN/select_can_database.h"
 
 #include <QCanBus>
+#include <QDebug>
 
-ConnectDialog::ConnectDialog(QWidget *parent) : QDialog(parent),
-                                                m_ui(new Ui::ConnectDialog)
+ConnectDialog::ConnectDialog(QWidget *parent) : 
+    QDialog(parent), m_ui(new Ui::ConnectDialog)
 {
     m_ui->setupUi(this);
 
@@ -71,17 +72,19 @@ ConnectDialog::ConnectDialog(QWidget *parent) : QDialog(parent),
     m_ui->receiveOwnBox->addItem(tr("true"), QVariant(true));
     m_ui->receiveOwnBox->setCurrentIndex(1);
 
-    m_ui->bitrateBox->addItem(tr("125000"), QVariant(true));
-    m_ui->bitrateBox->addItem(tr("250000"), QVariant(true));
-    m_ui->bitrateBox->addItem(tr("500000"), QVariant(true));
-    m_ui->bitrateBox->addItem(tr("1000000"), QVariant(true));
-    m_ui->bitrateBox->setCurrentIndex(2);
+    m_ui->canFdBox->addItem(tr("false"), QVariant(false));
+    m_ui->canFdBox->addItem(tr("true"), QVariant(true));
+    m_ui->canFdBox->setCurrentIndex(1);
+
+    m_ui->dataBitrateBox->setFlexibleDateRateEnabled(true);
 
     m_ui->okButton->setEnabled(false);
 
     connect(m_ui->okButton, &QPushButton::clicked, this, &ConnectDialog::ok);
     connect(m_ui->cancelButton, &QPushButton::clicked, this, &ConnectDialog::cancel);
-    connect(m_ui->backendListBox, &QComboBox::currentTextChanged,
+    connect(m_ui->useConfigurationBox, &QCheckBox::clicked,
+            m_ui->configurationBox, &QGroupBox::setEnabled);
+    connect(m_ui->pluginListBox, &QComboBox::currentTextChanged,
             this, &ConnectDialog::backendChanged);
     connect(m_ui->interfaceListBox, &QComboBox::currentTextChanged,
             this, &ConnectDialog::interfaceChanged);
@@ -89,8 +92,12 @@ ConnectDialog::ConnectDialog(QWidget *parent) : QDialog(parent),
             this, &ConnectDialog::importDatabaseLocation);
     m_ui->rawFilterEdit->hide();
     m_ui->rawFilterLabel->hide();
-
-    m_ui->backendListBox->addItems(QCanBus::instance()->plugins());
+    
+    m_ui->pluginListBox->addItems(QCanBus::instance()->plugins());
+    
+    if(! QCanBus::instance()->plugins().size()){
+        qDebug() << "no CAN plugin been loaded, check";
+    }
 
     updateSettings();
 }
@@ -115,11 +122,19 @@ void ConnectDialog::backendChanged(const QString &backend)
 
 void ConnectDialog::interfaceChanged(const QString &interface)
 {
+    m_ui->isVirtual->setChecked(false);
+    m_ui->isFlexibleDataRateCapable->setChecked(false);
 
-    for (const QCanBusDeviceInfo &info : qAsConst(m_interfaces))
-    {
-        if (info.name() == interface)
-        {
+    for (const QCanBusDeviceInfo &info : qAsConst(m_interfaces)) {
+        if (info.name() == interface) {
+            m_ui->descriptionLabel->setText(info.description());
+            QString serialNumber = info.serialNumber();
+            if (serialNumber.isEmpty())
+                serialNumber = tr("n/a");
+            m_ui->serialNumberLabel->setText(tr("Serial: %1").arg(serialNumber));
+            m_ui->channelLabel->setText(tr("Channel: %1").arg(info.channel()));
+            m_ui->isVirtual->setChecked(info.isVirtual());
+            m_ui->isFlexibleDataRateCapable->setChecked(info.hasFlexibleDataRate());
             break;
         }
     }
@@ -161,9 +176,10 @@ QString ConnectDialog::configurationValue(QCanBusDevice::ConfigurationKey key)
 
 void ConnectDialog::revertSettings()
 {
-    m_ui->backendListBox->setCurrentText(m_currentSettings.backendName);
+    m_ui->pluginListBox->setCurrentText(m_currentSettings.pluginName);
     m_ui->interfaceListBox->setCurrentText(m_currentSettings.deviceInterfaceName);
-
+    m_ui->useConfigurationBox->setChecked(m_currentSettings.useConfigurationEnabled);
+    
     QString value = configurationValue(QCanBusDevice::LoopbackKey);
     m_ui->loopbackBox->setCurrentText(value);
 
@@ -175,12 +191,19 @@ void ConnectDialog::revertSettings()
 
     value = configurationValue(QCanBusDevice::BitRateKey);
     m_ui->bitrateBox->setCurrentText(value);
+
+    value = configurationValue(QCanBusDevice::CanFdKey);
+    m_ui->canFdBox->setCurrentText(value);
+
+    value = configurationValue(QCanBusDevice::DataBitRateKey);
+    m_ui->dataBitrateBox->setCurrentText(value);
 }
 
 void ConnectDialog::updateSettings()
 {
-    m_currentSettings.backendName = m_ui->backendListBox->currentText();
+    m_currentSettings.pluginName = m_ui->pluginListBox->currentText();
     m_currentSettings.deviceInterfaceName = m_ui->interfaceListBox->currentText();
+    m_currentSettings.useConfigurationEnabled = m_ui->useConfigurationBox->isChecked();
 
     if (m_currentSettings.useConfigurationEnabled)
     {
@@ -229,6 +252,19 @@ void ConnectDialog::updateSettings()
         if (bitrate > 0)
         {
             const ConfigurationItem item(QCanBusDevice::BitRateKey, QVariant(bitrate));
+            m_currentSettings.configurations.append(item);
+        }
+
+        // process CAN FD setting
+        ConfigurationItem fdItem;
+        fdItem.first = QCanBusDevice::CanFdKey;
+        fdItem.second = m_ui->canFdBox->currentData();
+        m_currentSettings.configurations.append(fdItem);
+
+        // process data bitrate
+        const int dataBitrate = m_ui->dataBitrateBox->currentText().toInt();
+        if (dataBitrate > 0) {
+            const ConfigurationItem item(QCanBusDevice::DataBitRateKey, QVariant(dataBitrate));
             m_currentSettings.configurations.append(item);
         }
     }

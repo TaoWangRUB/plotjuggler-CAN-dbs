@@ -15,7 +15,8 @@
 
 // Regular expression for log files created by candump -L
 // Captured groups: time, channel, frame_id, payload
-const QRegularExpression canlog_rgx("\\((\\d*\\.\\d*)\\)\\s*([\\S]*)\\s*([0-9a-fA-F]{3,8})\\#([0-9a-fA-F]*)");
+const QRegularExpression canlog_rgx("\\((?<time>\\d*\\.\\d*)\\)\\s*(?<can_channel>[\\S]*)\\s*(?<id>[0-9a-fA-F]{3,8})\\#(?<data>[0-9a-fA-F]*)");
+const QRegularExpression canfd_log_rgx("\\((?<time>\\d*\\.\\d*)\\)\\s*(?<can_channel>[\\S]*)\\s*(?<id>[0-9a-fA-F]{3,8})\\#(?<flag>\\#[0-1])(?<data>[0-9a-fA-F]*)");
 
 DataLoadCAN::DataLoadCAN()
 {
@@ -107,34 +108,66 @@ bool DataLoadCAN::readDataFromFile(FileLoadInfo* fileload_info, PlotDataMapRef& 
   while (!inB.atEnd())
   {
     QString line = inB.readLine();
+    // qDebug() << line;
     static QRegularExpressionMatchIterator rxIterator;
-    rxIterator = canlog_rgx.globalMatch(line);
+    if(!is_extended_id_)
+    {
+      rxIterator = canlog_rgx.globalMatch(line);
+    } 
+    else 
+    {
+      rxIterator = canfd_log_rgx.globalMatch(line);
+    }
     if (!rxIterator.hasNext())
     {
       continue;  // skip invalid lines
     }
     QRegularExpressionMatch canFrame = rxIterator.next();
-    uint64_t frameId = std::stoul(canFrame.captured(3).toStdString(), 0, 16);
-    double frameTime = std::stod(canFrame.captured(1).toStdString());
+    uint64_t frameId = std::stoul(canFrame.captured("id").toStdString(), 0, 16);
+    double frameTime = std::stod(canFrame.captured("time").toStdString());
 
-    int dlc = canFrame.capturedLength(4) / 2;
+    int dlc = canFrame.capturedLength("data") / 2;
     std::string frameDataString;
     // When dlc is less than 8, right padding is required
     if (dlc < 8)
     {
       std::string padding = std::string(2 * (8 - dlc), '0');
-      frameDataString = canFrame.captured(4).toStdString().append(padding);
+      frameDataString = canFrame.captured("data").toStdString().append(padding);
     }
     else
     {
-      frameDataString = canFrame.captured(4).toStdString();
+      frameDataString = canFrame.captured("data").toStdString();
     }
-
+    /*
+    qDebug()<<frameTime<<frameId<<frameDataString.c_str();
     uint64_t frameData = std::stoul(frameDataString, 0, 16);
     uint8_t frameDataBytes[8];
     std::memcpy(frameDataBytes, &frameData, 8);
     std::reverse(frameDataBytes, frameDataBytes + 8);
+    */
+    uint8_t frameDataBytes[MAX_DATA_SIZE];
+    QByteArray buffer = QByteArray::fromHex(canFrame.captured("data").toUtf8());
+    memcpy(frameDataBytes,buffer.data(), dlc);
     frame_processor_->ProcessCanFrame(frameId, frameDataBytes, 8, frameTime);
+    /*
+    auto messages_iter = messages_.find(getId(frameId));// 
+    if (messages_iter != messages_.end())
+    {
+      const dbcppp::IMessage* msg = messages_iter->second;
+      for (const dbcppp::ISignal& signal : msg->Signals())
+      {
+        double decoded_val = signal.RawToPhys(signal.Decode(frameDataBytes));
+        //auto str = QString("can_frames/%1/").arg(search_id).toStdString() + signal.Name();
+        auto str = msg->Name() + "/" + signal.Name();
+        auto it = plot_data.numeric.find(str);
+        if (it != plot_data.numeric.end())
+        {
+          auto &plot = it->second;
+          plot.pushBack(PlotData::Point(frameTime, decoded_val));
+        }
+      }
+    }
+    */
     //------ progress dialog --------------
     if (linecount++ % 100 == 0)
     {
@@ -195,4 +228,9 @@ bool DataLoadCAN::xmlLoadState(const QDomElement& parent_element)
     }
   }
   return false;
+}
+
+uint64_t DataLoadCAN::getId (const uint64_t frame_id)
+{
+  return (EXTENDED_IDENTIFIER & frame_id)? (~EXTENDED_IDENTIFIER) & frame_id : frame_id;
 }

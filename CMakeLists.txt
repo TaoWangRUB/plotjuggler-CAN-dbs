@@ -12,12 +12,13 @@ else()
     set(PlotJuggler_LIBRARY plotjuggler_base)
 endif()
 
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_AUTOMOC ON)
-SET(CMAKE_AUTOUIC ON)
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
 
 if(APPLE AND EXISTS /usr/local/opt/qt5)
     # Homebrew installs Qt5 (up to at least 5.9.1) in
@@ -28,6 +29,9 @@ if(APPLE AND EXISTS /usr/local/opt/qt5)
     set(CMAKE_MACOSX_RPATH 1)
 endif()
 
+add_definitions(${QT_DEFINITIONS})
+add_definitions(-DQT_PLUGIN)
+
 find_package(Qt5 REQUIRED COMPONENTS
     Core
     Widgets
@@ -35,9 +39,10 @@ find_package(Qt5 REQUIRED COMPONENTS
     Xml
     Svg
 )
-find_package(Qt5SerialBus OPTIONAL_COMPONENTS
-    SerialBus
-)
+
+add_subdirectory(3rdparty/dbcppp)
+
+find_package(PlotJuggler REQUIRED)
 
 include_directories(
     ${Qt5Core_INCLUDE_DIRS}
@@ -49,56 +54,30 @@ include_directories(
     3rdparty/dbcppp/include
 )
 
-set(PJ_LIBRARIES
+set( LIBRARIES
     Qt5::Core
     Qt5::Widgets
     Qt5::Xml
     Qt5::Concurrent
     Qt5::Svg
     ${PlotJuggler_LIBRARY}
-)
-
-add_definitions(${QT_DEFINITIONS})
-add_definitions(-DQT_PLUGIN)
-
-add_subdirectory(3rdparty/dbcppp)
-
-add_library(CanFrameProcessor STATIC
-    PluginsCommonCAN/CanFrameProcessor.cpp
-    PluginsCommonCAN/N2kMsg/GenericFastPacket.c
-    PluginsCommonCAN/select_can_database.h
-    PluginsCommonCAN/select_can_database.cpp
-)
-target_link_libraries(CanFrameProcessor
-    ${PJ_LIBRARIES}
     libdbcppp
+    )
+
+if(${Qt5Widgets_FOUND})
+    message("-- Found Qt5, building DataLoadCAN.")
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/DataLoadCAN)
+else()
+    message("-- Since Qt5 not found, build without DataLoadCAN.")
+endif()
+
+find_package(Qt5 OPTIONAL_COMPONENTS
+    SerialBus
 )
-set_property(TARGET CanFrameProcessor PROPERTY POSITION_INDEPENDENT_CODE ON)
-
-add_library(DataLoadCAN SHARED
-    DataLoadCAN/dataload_can.h
-    DataLoadCAN/dataload_can.cpp)
-
-target_link_libraries(DataLoadCAN
-    ${PJ_LIBRARIES}
-    CanFrameProcessor
-)
-install(TARGETS DataLoadCAN DESTINATION bin)
-
 # Build&Install DataStreamCAN only if SerialBus found.
 if(${Qt5SerialBus_FOUND})
     message("-- Found Qt5::SerialBus, building DataStreamCAN.")
-    add_library(DataStreamCAN SHARED
-        DataStreamCAN/datastream_can.h
-        DataStreamCAN/datastream_can.cpp
-        DataStreamCAN/connectdialog.h
-        DataStreamCAN/connectdialog.cpp)
-    target_link_libraries(DataStreamCAN
-        ${PJ_LIBRARIES}
-        CanFrameProcessor
-        Qt5::SerialBus
-    )
-    install(TARGETS DataStreamCAN DESTINATION bin)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/DataStreamCAN)
 else()
     message("-- Since Qt5::SerialBus not found, cannot build DataStreamCAN.")
 endif()
