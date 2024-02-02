@@ -21,7 +21,9 @@ public:
   virtual const std::vector<const char *> &compatibleFileExtensions() const override;
   virtual QSize inspectFile(QFile *file);
   virtual bool readDataFromFile(FileLoadInfo *fileload_info, PlotDataMapRef &plot_data_map) override;
-  bool loadCANDatabase(PlotDataMapRef &plot_data_map, std::string dbc_file_location, CanFrameProcessor::CanProtocol protocol);
+  bool loadCANDatabase(std::string dbc_file_location, 
+                       CanFrameProcessor::CanProtocol protocol,
+                       PlotDataMapRef &plot_data_map);
   virtual ~DataLoadCAN();
 
   virtual const char *name() const override

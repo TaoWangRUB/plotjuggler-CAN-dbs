@@ -64,6 +64,18 @@ set( LIBRARIES
     libdbcppp
     )
 
+add_library(CanFrameProcessor STATIC
+    PluginsCommonCAN/CanFrameProcessor.cpp
+    PluginsCommonCAN/N2kMsg/GenericFastPacket.c
+    PluginsCommonCAN/select_can_database.h
+    PluginsCommonCAN/select_can_database.cpp
+)
+target_link_libraries(CanFrameProcessor
+    ${LIBRARIES}
+    libdbcppp
+)
+set_property(TARGET CanFrameProcessor PROPERTY POSITION_INDEPENDENT_CODE ON)
+
 if(${Qt5Widgets_FOUND})
     message("-- Found Qt5, building DataLoadCAN.")
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/DataLoadCAN)

@@ -1,7 +1,10 @@
 #include "CanFrameProcessor.h"
 #include "N2kMsg/GenericFastPacket.h"
 
-CanFrameProcessor::CanFrameProcessor(std::ifstream& dbc_file, PJ::PlotDataMapRef& data_map, CanProtocol protocol)
+const uint64_t EXTENDED_IDENTIFIER = 0x80000000UL;
+const uint8_t MAX_DATA_SIZE = 64;
+
+CanFrameProcessor::CanFrameProcessor(std::ifstream& dbc_file, CanProtocol protocol, PJ::PlotDataMapRef& data_map)
   : protocol_{ protocol }, data_map_{ data_map }
 {
   can_network_ = dbcppp::INetwork::LoadDBCFromIs(dbc_file);
@@ -10,7 +13,11 @@ CanFrameProcessor::CanFrameProcessor(std::ifstream& dbc_file, PJ::PlotDataMapRef
   {
     if (protocol_ == CanProtocol::RAW) {
       // When protocol is raw, use can_id from the dbc as the key for the messages
-      messages_.insert(std::make_pair(msg.Id(), &msg));
+      if(!is_extended_id_)
+      {
+        is_extended_id_ = msg.Id() & EXTENDED_IDENTIFIER;
+      }
+      messages_.insert({getId(msg.Id()), &msg});
     }
     else {
       // When protocol is not raw, use PGN as the key for the messages_
@@ -59,10 +66,10 @@ bool CanFrameProcessor::ProcessCanFrame(const uint32_t frame_id, const uint8_t* 
 bool CanFrameProcessor::ProcessCanFrameRaw(const uint32_t frame_id, const uint8_t* data_ptr, const size_t data_len,
                                            const double timestamp_secs)
 {
-  auto messages_iter = messages_.find(frame_id);
-  if (messages_iter != messages_.end())
+  auto msg_it = messages_.find(frame_id);
+  if (msg_it != messages_.end())
   {
-    const dbcppp::IMessage* msg = messages_iter->second;
+    const dbcppp::IMessage* msg = msg_it->second;
     for (const dbcppp::ISignal& sig : msg->Signals())
     {
       const dbcppp::ISignal* mux_sig = msg->MuxSignal();
@@ -71,7 +78,7 @@ bool CanFrameProcessor::ProcessCanFrameRaw(const uint32_t frame_id, const uint8_
       {
         double decoded_val = sig.RawToPhys(sig.Decode(data_ptr));
         auto str = QString("can_frames/%1/%2")
-                       .arg(QString::number(msg->Id()), QString::fromStdString(sig.Name()))
+                       .arg(QString::fromStdString(msg->Name()), QString::fromStdString(sig.Name()))
                        .toStdString();
         // qCritical() << str.c_str();
         auto it = data_map_.numeric.find(str);
@@ -196,4 +203,9 @@ void CanFrameProcessor::ForwardN2kSignalsToPlot(const N2kMsgInterface& n2k_msg)
       }
     }
   }
+}
+
+uint64_t CanFrameProcessor::getId (const uint64_t frame_id)
+{
+  return (EXTENDED_IDENTIFIER & frame_id)? (~EXTENDED_IDENTIFIER) & frame_id : frame_id;
 }

@@ -63,7 +63,7 @@ void DataStreamCAN::connectCanInterface()
   else
   {
     std::ifstream dbc_file{ p.canDatabaseLocation.toStdString() };
-    frame_processor_ = std::make_unique<CanFrameProcessor>(dbc_file, dataMap(), p.protocol);
+    frame_processor_ = std::make_unique<CanFrameProcessor>(dbc_file, p.protocol, dataMap());
 
     QVariant bitRate = can_interface_->configurationParameter(QCanBusDevice::BitRateKey);
     QString status = nullptr;

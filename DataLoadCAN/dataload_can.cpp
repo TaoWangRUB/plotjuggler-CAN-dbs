@@ -28,11 +28,12 @@ const std::vector<const char*>& DataLoadCAN::compatibleFileExtensions() const
   return extensions_;
 }
 
-bool DataLoadCAN::loadCANDatabase(PlotDataMapRef& plot_data_map, std::string dbc_file_location,
-                                  CanFrameProcessor::CanProtocol protocol)
+bool DataLoadCAN::loadCANDatabase(std::string dbc_file_location,
+                                  CanFrameProcessor::CanProtocol protocol,
+                                  PlotDataMapRef& plot_data_map)
 {
   std::ifstream dbc_file{ dbc_file_location };
-  frame_processor_ = std::make_unique<CanFrameProcessor>(dbc_file, plot_data_map, protocol);
+  frame_processor_ = std::make_unique<CanFrameProcessor>(dbc_file, protocol, plot_data_map);
   return true;
 }
 
@@ -84,7 +85,8 @@ bool DataLoadCAN::readDataFromFile(FileLoadInfo* fileload_info, PlotDataMapRef& 
   {
     return false;
   }
-  loadCANDatabase(plot_data_map, dialog->GetDatabaseLocation().toStdString(), dialog->GetCanProtocol());
+  // load dbc data file
+  loadCANDatabase(dialog->GetDatabaseLocation().toStdString(), dialog->GetCanProtocol(), plot_data_map);
 
   file.open(QFile::ReadOnly);
   QTextStream inB(&file);
@@ -110,7 +112,7 @@ bool DataLoadCAN::readDataFromFile(FileLoadInfo* fileload_info, PlotDataMapRef& 
     QString line = inB.readLine();
     // qDebug() << line;
     static QRegularExpressionMatchIterator rxIterator;
-    if(!is_extended_id_)
+    if(!frame_processor_->isExtendedId())
     {
       rxIterator = canlog_rgx.globalMatch(line);
     } 
@@ -127,28 +129,10 @@ bool DataLoadCAN::readDataFromFile(FileLoadInfo* fileload_info, PlotDataMapRef& 
     double frameTime = std::stod(canFrame.captured("time").toStdString());
 
     int dlc = canFrame.capturedLength("data") / 2;
-    std::string frameDataString;
-    // When dlc is less than 8, right padding is required
-    if (dlc < 8)
-    {
-      std::string padding = std::string(2 * (8 - dlc), '0');
-      frameDataString = canFrame.captured("data").toStdString().append(padding);
-    }
-    else
-    {
-      frameDataString = canFrame.captured("data").toStdString();
-    }
-    /*
-    qDebug()<<frameTime<<frameId<<frameDataString.c_str();
-    uint64_t frameData = std::stoul(frameDataString, 0, 16);
-    uint8_t frameDataBytes[8];
-    std::memcpy(frameDataBytes, &frameData, 8);
-    std::reverse(frameDataBytes, frameDataBytes + 8);
-    */
     uint8_t frameDataBytes[MAX_DATA_SIZE];
     QByteArray buffer = QByteArray::fromHex(canFrame.captured("data").toUtf8());
     memcpy(frameDataBytes,buffer.data(), dlc);
-    frame_processor_->ProcessCanFrame(frameId, frameDataBytes, 8, frameTime);
+    frame_processor_->ProcessCanFrame(frameId, frameDataBytes, dlc, frameTime);
     /*
     auto messages_iter = messages_.find(getId(frameId));// 
     if (messages_iter != messages_.end())
