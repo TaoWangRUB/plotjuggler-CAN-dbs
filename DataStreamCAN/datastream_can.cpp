@@ -196,5 +196,4 @@ void DataStreamCAN::loop()
 uint64_t DataStreamCAN::getId (const uint64_t frame_id)
 {
   return (EXTENDED_IDENTIFIER & frame_id)? (~EXTENDED_IDENTIFIER) & frame_id : frame_id;
-  //return frame_id;
 }
