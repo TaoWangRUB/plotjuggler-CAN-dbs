@@ -63,7 +63,10 @@ void DataStreamCAN::connectCanInterface()
   else
   {
     std::ifstream dbc_file{ p.canDatabaseLocation.toStdString() };
-    frame_processor_ = std::make_unique<CanFrameProcessor>(dbc_file, p.protocol, dataMap());
+    frame_processor_ = std::make_unique<CanFrameProcessor>(dbc_file, 
+                                                           p.protocol, 
+                                                           dataMap(),
+                                                           connect_dialog_->getFilterList());
 
     QVariant bitRate = can_interface_->configurationParameter(QCanBusDevice::BitRateKey);
     QString status = nullptr;
@@ -148,31 +151,13 @@ void DataStreamCAN::pushSingleCycle()
   {
     auto frame = can_interface_->readFrame();
     double timestamp = frame.timeStamp().seconds() + frame.timeStamp().microSeconds() * 1e-6;
-    frame_processor_->ProcessCanFrame(frame.frameId(), (const uint8_t*)frame.payload().data(), 8, timestamp);
-    /*
-    if (can_network_)
+    // apply id filter only when filter list is not empty
+    if(connect_dialog_->getIdFilterList().find(frame.frameId()) == connect_dialog_->getIdFilterList().end() &&
+       !connect_dialog_->getIdFilterList().empty())
     {
-      double now = frame.timeStamp().seconds() + frame.timeStamp().microSeconds() * 1e-6;
-      auto messages_iter = messages_.find(getId(frame.frameId()));
-      if (messages_iter != messages_.end())
-      {
-        const dbcppp::IMessage* msg = messages_iter->second;
-        for (const dbcppp::ISignal& signal : msg->Signals())
-        {
-          double decoded_val = signal.RawToPhys(signal.Decode(frame.payload().data()));
-          //auto str = QString("can_frames/%1/").arg(getId(msg->Id())).toStdString() + signal.Name();
-          auto str = msg->Name() + "/" + signal.Name();
-          auto it = dataMap().numeric.find(str);
-          if (it != dataMap().numeric.end())
-          {
-            auto &plot = it->second;
-            plot.pushBack({now, decoded_val});
-          }
-        }
-      }
-      else qDebug() << frame.frameId() << " not found";
+      continue;
     }
-    */
+    frame_processor_->ProcessCanFrame(frame.frameId(), (const uint8_t*)frame.payload().data(), 8, timestamp);
   }
 }
 

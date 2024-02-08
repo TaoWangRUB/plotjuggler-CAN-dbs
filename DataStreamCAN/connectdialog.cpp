@@ -55,6 +55,8 @@
 #include <QCanBus>
 #include <QDebug>
 
+#include <algorithm>
+#include <sstream>
 ConnectDialog::ConnectDialog(QWidget *parent) : 
     QDialog(parent), m_ui(new Ui::ConnectDialog)
 {
@@ -94,9 +96,14 @@ ConnectDialog::ConnectDialog(QWidget *parent) :
     m_ui->rawFilterLabel->hide();
     
     m_ui->pluginListBox->addItems(QCanBus::instance()->plugins());
-    
+    // give warning if no CAN plugin been loaded
     if(! QCanBus::instance()->plugins().size()){
         qDebug() << "no CAN plugin been loaded, check";
+    }
+    // add socketcan as default
+    if(QCanBus::instance()->plugins().contains("socketcan"))
+    {
+        m_ui->pluginListBox->setCurrentText("socketcan");
     }
 
     updateSettings();
@@ -186,6 +193,9 @@ void ConnectDialog::revertSettings()
     value = configurationValue(QCanBusDevice::ReceiveOwnKey);
     m_ui->receiveOwnBox->setCurrentText(value);
 
+    value = configurationValue(QCanBusDevice::RawFilterKey);
+    m_ui->rawFilterEdit->setText(value);
+
     value = configurationValue(QCanBusDevice::ErrorFilterKey);
     m_ui->errorFilterEdit->setText(value);
 
@@ -244,7 +254,21 @@ void ConnectDialog::updateSettings()
         // process raw filter list
         if (!m_ui->rawFilterEdit->text().isEmpty())
         {
-            //TODO current ui not sfficient to reflect this param
+            // clear if filter list is not empty
+            /*m_currentSettings.m_filter_list.clear();
+            std::stringstream ss(m_ui->rawFilterEdit->text().toStdString());
+            std::string token;
+            std::vector<std::string> result;
+            while(std::getline(ss, token, ',')) {
+                token.erase(std::remove(token.begin(), token.end(), ' '), token.end());
+                result.push_back(token);
+            }
+            std::for_each(result.begin(), result.end(),
+                          [this](const auto& str){m_currentSettings.m_filter_list.emplace(str, QRegularExpression(str.c_str(), QRegularExpression::CaseInsensitiveOption));});
+            for(const auto&[k, v] : m_currentSettings.m_filter_list)
+            {
+                qDebug() << k.c_str();
+            }*/
         }
 
         // process bitrate
@@ -281,6 +305,8 @@ void ConnectDialog::importDatabaseLocation()
 
     m_currentSettings.canDatabaseLocation = dialog->GetDatabaseLocation();
     m_currentSettings.protocol = dialog->GetCanProtocol();
+    m_currentSettings.m_filter_list = dialog->getNameFilterList();
+    m_currentSettings.m_id_filter_list = dialog->getIdFilterList();
     // Since file is gotten, enable ok button.
     m_ui->okButton->setEnabled(true);
 }

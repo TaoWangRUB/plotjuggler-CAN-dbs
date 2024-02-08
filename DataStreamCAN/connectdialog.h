@@ -55,6 +55,7 @@
 
 #include <QCanBusDevice>
 #include <QCanBusDeviceInfo>
+#include <QRegularExpression>
 
 #include <QFile>
 #include <QFileDialog>
@@ -85,12 +86,16 @@ public:
         QList<ConfigurationItem> configurations;
         bool useConfigurationEnabled = false;
         CanFrameProcessor::CanProtocol protocol;
+        std::unordered_map<std::string, QRegularExpression> m_filter_list;
+        std::unordered_set<uint64_t> m_id_filter_list;
     };
 
     explicit ConnectDialog(QWidget *parent = nullptr);
     ~ConnectDialog();
 
     Settings settings() const;
+    const std::unordered_map<std::string, QRegularExpression>& getFilterList() const { return m_currentSettings.m_filter_list;};
+    const std::unordered_set<uint64_t>& getIdFilterList() const { return m_currentSettings.m_id_filter_list;};
 
 private slots:
     void backendChanged(const QString &backend);

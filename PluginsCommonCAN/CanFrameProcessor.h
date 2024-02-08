@@ -1,6 +1,9 @@
 #ifndef CAN_FRAME_PROCESSOR_H_
 #define CAN_FRAME_PROCESSOR_H_
 
+#include <QRegularExpression>
+#include <QDebug>
+#include <unordered_map>
 #include <fstream>
 
 #include <dbcppp/Network.h>
@@ -18,7 +21,8 @@ public:
     NMEA2K,
     J1939
   };
-  CanFrameProcessor(std::ifstream& dbc_file, CanProtocol protocol, PJ::PlotDataMapRef& data_map);
+  CanFrameProcessor(std::ifstream& dbc_file, CanProtocol protocol, PJ::PlotDataMapRef& data_map,
+                    const std::unordered_map<std::string, QRegularExpression>& filter_list = {});
 
   bool ProcessCanFrame(const uint32_t frame_id, const uint8_t* data_ptr, const size_t data_len,
                        const double timestamp_secs);
@@ -52,5 +56,8 @@ private:
 
   // extended frame id flag
   bool is_extended_id_ = false;
+  // CAN frame filter
+  std::unordered_map<std::string, QRegularExpression> m_filter_list;
+
 };
 #endif  // CAN_FRAME_PROCESSOR_H_

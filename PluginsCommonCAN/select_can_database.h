@@ -26,6 +26,8 @@ public:
   explicit DialogSelectCanDatabase(QWidget* parent = nullptr);
   QString GetDatabaseLocation() const;
   CanFrameProcessor::CanProtocol GetCanProtocol() const;
+  const std::unordered_map<std::string, QRegularExpression>& getNameFilterList() const {return m_filter_list;};
+  const std::unordered_set<uint64_t>& getIdFilterList() const { return m_id_filter_list;};
 
   ~DialogSelectCanDatabase() override;
 
@@ -34,10 +36,14 @@ private slots:
   void Cancel();
 
 private:
-  Ui::DialogSelectCanDatabase* ui_;
-  QString database_location_;
-  CanFrameProcessor::CanProtocol protocol_;
+  Ui::DialogSelectCanDatabase* m_ui;
+  QString m_database_location;
+  CanFrameProcessor::CanProtocol m_protocol;
+  std::unordered_map<std::string, QRegularExpression> m_filter_list;
+  std::unordered_set<uint64_t> m_id_filter_list;
 
+  // update configuration
+  void updateConfig();
   void ImportDatabaseLocation();
 };
 

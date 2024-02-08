@@ -4,11 +4,25 @@
 const uint64_t EXTENDED_IDENTIFIER = 0x80000000UL;
 const uint8_t MAX_DATA_SIZE = 64;
 
-CanFrameProcessor::CanFrameProcessor(std::ifstream& dbc_file, CanProtocol protocol, PJ::PlotDataMapRef& data_map)
+CanFrameProcessor::CanFrameProcessor(std::ifstream& dbc_file, 
+                                     CanProtocol protocol, 
+                                     PJ::PlotDataMapRef& data_map,
+                                     const std::unordered_map<std::string, QRegularExpression>& filter_list)
   : protocol_{ protocol }, data_map_{ data_map }
 {
   can_network_ = dbcppp::INetwork::LoadDBCFromIs(dbc_file);
   messages_.clear();
+  auto isFound = [&filter_list](const std::string& name) 
+  { 
+    for(const auto&[key, re] : filter_list)
+    {
+      if(re.match(name.c_str()).hasMatch()){
+        return true;
+      }
+    }
+    return false;
+  };
+  
   for (const dbcppp::IMessage& msg : can_network_->Messages())
   {
     if (protocol_ == CanProtocol::RAW) {
@@ -17,7 +31,14 @@ CanFrameProcessor::CanFrameProcessor(std::ifstream& dbc_file, CanProtocol protoc
       {
         is_extended_id_ = msg.Id() & EXTENDED_IDENTIFIER;
       }
-      messages_.insert({getId(msg.Id()), &msg});
+      
+      if(isFound(msg.Name()) && !filter_list.empty() ||
+         filter_list.empty())
+      {
+        //qDebug() << "found CAN " << msg.Name().c_str() << " with ID " << getId(msg.Id());
+        messages_.insert({getId(msg.Id()), &msg});
+      }
+      
     }
     else {
       // When protocol is not raw, use PGN as the key for the messages_

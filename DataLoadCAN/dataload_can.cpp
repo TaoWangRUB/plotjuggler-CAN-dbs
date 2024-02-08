@@ -30,10 +30,14 @@ const std::vector<const char*>& DataLoadCAN::compatibleFileExtensions() const
 
 bool DataLoadCAN::loadCANDatabase(std::string dbc_file_location,
                                   CanFrameProcessor::CanProtocol protocol,
-                                  PlotDataMapRef& plot_data_map)
+                                  PlotDataMapRef& plot_data_map,
+                                  const std::unordered_map<std::string, QRegularExpression>& filter_list)
 {
   std::ifstream dbc_file{ dbc_file_location };
-  frame_processor_ = std::make_unique<CanFrameProcessor>(dbc_file, protocol, plot_data_map);
+  frame_processor_ = std::make_unique<CanFrameProcessor>(dbc_file,
+                                                         protocol, 
+                                                         plot_data_map,
+                                                         filter_list);
   return true;
 }
 
@@ -86,7 +90,10 @@ bool DataLoadCAN::readDataFromFile(FileLoadInfo* fileload_info, PlotDataMapRef& 
     return false;
   }
   // load dbc data file
-  loadCANDatabase(dialog->GetDatabaseLocation().toStdString(), dialog->GetCanProtocol(), plot_data_map);
+  loadCANDatabase(dialog->GetDatabaseLocation().toStdString(),
+                  dialog->GetCanProtocol(), 
+                  plot_data_map,
+                  dialog->getNameFilterList());
 
   file.open(QFile::ReadOnly);
   QTextStream inB(&file);
@@ -132,26 +139,13 @@ bool DataLoadCAN::readDataFromFile(FileLoadInfo* fileload_info, PlotDataMapRef& 
     uint8_t frameDataBytes[MAX_DATA_SIZE];
     QByteArray buffer = QByteArray::fromHex(canFrame.captured("data").toUtf8());
     memcpy(frameDataBytes,buffer.data(), dlc);
-    frame_processor_->ProcessCanFrame(frameId, frameDataBytes, dlc, frameTime);
-    /*
-    auto messages_iter = messages_.find(getId(frameId));// 
-    if (messages_iter != messages_.end())
+    // apply id filter only when filter list is not empty
+    if(dialog->getIdFilterList().find(frameId) == dialog->getIdFilterList().end() &&
+       !dialog->getIdFilterList().empty())
     {
-      const dbcppp::IMessage* msg = messages_iter->second;
-      for (const dbcppp::ISignal& signal : msg->Signals())
-      {
-        double decoded_val = signal.RawToPhys(signal.Decode(frameDataBytes));
-        //auto str = QString("can_frames/%1/").arg(search_id).toStdString() + signal.Name();
-        auto str = msg->Name() + "/" + signal.Name();
-        auto it = plot_data.numeric.find(str);
-        if (it != plot_data.numeric.end())
-        {
-          auto &plot = it->second;
-          plot.pushBack(PlotData::Point(frameTime, decoded_val));
-        }
-      }
+      continue;
     }
-    */
+    frame_processor_->ProcessCanFrame(frameId, frameDataBytes, dlc, frameTime);
     //------ progress dialog --------------
     if (linecount++ % 100 == 0)
     {

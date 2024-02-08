@@ -23,7 +23,8 @@ public:
   virtual bool readDataFromFile(FileLoadInfo *fileload_info, PlotDataMapRef &plot_data_map) override;
   bool loadCANDatabase(std::string dbc_file_location, 
                        CanFrameProcessor::CanProtocol protocol,
-                       PlotDataMapRef &plot_data_map);
+                       PlotDataMapRef &plot_data_map,
+                       const std::unordered_map<std::string, QRegularExpression>& filter_list = {});
   virtual ~DataLoadCAN();
 
   virtual const char *name() const override

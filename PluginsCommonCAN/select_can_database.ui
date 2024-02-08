@@ -6,22 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>446</width>
-    <height>127</height>
+    <width>467</width>
+    <height>195</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Connect</string>
   </property>
   <layout class="QGridLayout" name="gridLayout_2">
-   <item row="1" column="0">
-    <widget class="QPushButton" name="loadDatabaseButton">
-     <property name="text">
-      <string>Load CAN Database</string>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="0" colspan="2">
+   <item row="2" column="0" colspan="2">
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
       <spacer name="horizontalSpacer">
@@ -62,15 +55,59 @@
     </layout>
    </item>
    <item row="1" column="1">
-    <widget class="QGroupBox" name="selectProtocolBox">
-     <property name="title">
-      <string>Select Protocol</string>
+    <widget class="QGroupBox" name="databaseConfigBox">
+     <property name="enabled">
+      <bool>false</bool>
      </property>
-     <layout class="QHBoxLayout" name="horizontalLayout_2">
-      <item>
+     <property name="title">
+      <string>Database Configuration</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout">
+      <property name="verticalSpacing">
+       <number>4</number>
+      </property>
+      <item row="2" column="2">
+       <widget class="QLineEdit" name="idFilterEdit"/>
+      </item>
+      <item row="0" column="2">
        <widget class="QComboBox" name="protocolListBox"/>
       </item>
+      <item row="2" column="1">
+       <widget class="QLabel" name="idFilterLabel">
+        <property name="text">
+         <string>Frame ID Filter</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLabel" name="nameFilterLabel">
+        <property name="text">
+         <string>Frame Name Filter</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLabel" name="protocalLabel">
+        <property name="text">
+         <string>Protocal</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QLineEdit" name="nameFilterEdit">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
      </layout>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QPushButton" name="loadDatabaseButton">
+     <property name="text">
+      <string>Load CAN Database</string>
+     </property>
     </widget>
    </item>
   </layout>
